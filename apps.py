@@ -5,11 +5,12 @@ import dash
 from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
-
+import dropbox 
+dbx = dropbox.Dropbox('5uSdWA0gd2UAAAAAAAAAAauPVaO_t_nlwRgP3YzwZ8-2HlxYFWRLUrmTAgk4F4b7')
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-server=app.server
+
 app.layout = html.Div([
     dcc.Upload(
         id='upload-image',
@@ -35,11 +36,15 @@ app.layout = html.Div([
 
 
 def parse_contents(contents, filename, date):
+    dbx.files_delete_v2('/IMAGE.png')
     content_type, content_string = contents.split(',')
     base64_img_bytes = content_string.encode('utf-8')
-    with open('decoded_image.png', 'wb') as file_to_save:
-        decoded_image_data = base64.decodebytes(base64_img_bytes)
-        file_to_save.write(decoded_image_data)  
+##    with open('decoded_image.png', 'wb') as file_to_save:
+    decoded_image_data = base64.decodebytes(base64_img_bytes)
+        #file_to_save.write(decoded_image_data,format="PNG")
+    dbx.files_upload(
+                decoded_image_data,'/IMAGE.png', dropbox.files.WriteMode.add,
+                mute=True)
     return html.Div([
         html.H5(filename),
         html.H6(datetime.datetime.fromtimestamp(date)),
