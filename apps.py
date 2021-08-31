@@ -10,6 +10,7 @@ import cv2
 from matplotlib import pyplot as plt
 from urllib.request import urlopen
 import numpy as np
+import pandas as pd
 dbx = dropbox.Dropbox('5uSdWA0gd2UAAAAAAAAAAauPVaO_t_nlwRgP3YzwZ8-2HlxYFWRLUrmTAgk4F4b7')
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -36,7 +37,7 @@ app.layout = html.Div([
     ),
     html.Div(id='output-image-upload'),
      html.Div([
-     html.Button('Classify', id='btn-nclicks-1', n_clicks=0)]),
+     html.Button('Start Process', id='btn-nclicks-1', n_clicks=0)]),
      html.Div(id='container-button-timestamp'),
 ])
 
@@ -90,9 +91,45 @@ def displayClick(btn1):
                 cc=resultresult.link
         url_response = urlopen(cc)
         img_array = np.array(bytearray(url_response.read()), dtype=np.uint8)
-        img = cv2.imdecode(img_array, -1)
-        cv2.imshow('img', img)
-        cv2.waitKey()
+        img = cv2.imdecode(img_array,cv2.IMREAD_COLOR)
+        h, w, c = img.shape
+        y=int(h*16/100)
+        x=int(w*16/100)
+        crop_image = img[x:w,y:h]
+        grayimg = cv2.cvtColor(crop_image, cv2.COLOR_BGR2GRAY)
+        Gaussian_Iamge = cv2.GaussianBlur(grayimg,(5,5),0)
+        edges = cv2.Canny(Gaussian_Iamge,30,30)
+        df = pd.DataFrame(edges/255)
+        Descibe_Data=df.describe()
+        df1=Descibe_Data.mean(axis=1)
+        med1=df1.iloc[1:len(df1)].mean(axis=0)
+        df2=Descibe_Data.median(axis=1)
+        med2=df2.iloc[1:len(df2)].mean(axis=0)
+        df3=Descibe_Data.std(axis=1)
+        med3=df3.iloc[1:len(df3)].mean(axis=0)
+        df4=pd.read_csv('TB.csv')
+        df5=pd.read_csv('Covid.csv')
+        df6=pd.read_csv('PE.csv')
+        data_point_TB=np.array([df4['Mean'],df4['Median']])
+        data_point_Covid=np.array([df5['Mean'],df5['Median']])
+        data_point_PE=np.array([df6['Mean'],df6['Median']])
+        daat_point_test_image=np.array([round(med1,4),round(med2,4)])
+        Euclidean_distance_TB = round(np.linalg.norm(data_point_TB - daat_point_test_image),4)
+        Euclidean_distance_Covid = round(np.linalg.norm(data_point_Covid - daat_point_test_image),4)
+        Euclidean_distance_PE = round(np.linalg.norm(data_point_PE - daat_point_test_image),4)
+        list9=[str("TB"),str("Covid"),str("PE")]
+        list8=[Euclidean_distance_TB, Euclidean_distance_Covid,Euclidean_distance_PE]
+        new_data=pd.DataFrame({'TB' : [list8[0]],
+                                   'Covid' : [list8[1]],
+                                         "PE" : [list8[2]]}, 
+                                  columns=['TB', 'Covid','PE'])
+        data = new_data.to_csv(index=False) # The index parameter is optional
+        with io.BytesIO(data.encode()) as stream:
+            stream.seek(0)
+            dbx.files_upload(stream.read(), "/Chest X-ray.csv", mode=dropbox.files.WriteMode.overwrite)
+    else:
+        msg = ''
+    return html.Div(msg)
 
 if __name__ == '__main__':
     app.run_server(debug=False)
