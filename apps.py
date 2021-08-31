@@ -7,6 +7,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dropbox
 import cv2
+from matplotlib import pyplot as plt
+from urllib.request import urlopen
+import numpy as np
 dbx = dropbox.Dropbox('5uSdWA0gd2UAAAAAAAAAAauPVaO_t_nlwRgP3YzwZ8-2HlxYFWRLUrmTAgk4F4b7')
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -32,8 +35,10 @@ app.layout = html.Div([
         multiple=True
     ),
     html.Div(id='output-image-upload'),
+     html.Div([
+     html.Button('Classify', id='btn-nclicks-1', n_clicks=0)]),
+     html.Div(id='container-button-timestamp'),
 ])
-
 
 def parse_contents(contents, filename, date):
     dbx.files_delete_v2('/IMAGE.png')
@@ -71,7 +76,23 @@ def update_output(list_of_contents, list_of_names, list_of_dates):
             parse_contents(c, n, d) for c, n, d in
             zip(list_of_contents, list_of_names, list_of_dates)]
         return children
-
+@app.callback(Output('container-button-timestamp', 'children'),
+              Input('btn-nclicks-1', 'n_clicks'))
+def displayClick(btn1):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'btn-nclicks-1' in changed_id:
+        msg=''
+        for entry in dbx.files_list_folder('').entries:
+            aa=entry.name
+            if aa=='IMAGE.png':
+                bb=entry.id
+                resultresult =dbx.files_get_temporary_link(bb)
+                cc=resultresult.link
+        url_response = urlopen(cc)
+        img_array = np.array(bytearray(url_response.read()), dtype=np.uint8)
+        img = cv2.imdecode(img_array, -1)
+        cv2.imshow('img', img)
+        cv2.waitKey()
 
 if __name__ == '__main__':
     app.run_server(debug=False)
